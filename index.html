@@ -6,33 +6,36 @@
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="site.webmanifest">
-
 <meta charset="UTF-8" />
-<title>Clock</title>
+<title>Aesthetic OLED Clock</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
 <style>
 /* =========================
-   DESIGN TOKENS
+   DESIGN TOKENS (OLED)
 ========================= */
 :root {
-  --bg-outer: #090909;
+  --bg-outer: #000000;
   --bg-inner: #000000;
 
-  --card-top: #101010;
-  --card-bottom: #070707;
+  --card-top: #0b0b0b;
+  --card-bottom: #060606;
 
-  --digit-color: #f1f1f1;
-  --accent-color: rgba(255,255,255,0.26);
+  --digit-color: #f5f5f5;
+  --accent-color: rgba(255,255,255,0.22);
 
-  --card-radius: 26px;
-  --card-size: 260px;
+  --card-radius: 22px;
 
-  --digit-size: 9.6rem;
-  --accent-size: 0.9rem;
+  /* Responsive size */
+  --card-size: clamp(180px, 38vw, 260px);
 
-  --anim-duration: 170ms;
-  --ease: cubic-bezier(.2,.6,.4,1);
+  /* Digits */
+  --digit-size: clamp(6.5rem, 14vw, 9.4rem);
+  --accent-size: clamp(0.75rem, 2.2vw, 0.9rem);
+
+  /* Ultra-fast */
+  --anim-duration: 110ms;
+  --ease: linear;
 }
 
 /* =========================
@@ -43,19 +46,12 @@
 html, body {
   margin: 0;
   height: 100%;
-  background: radial-gradient(circle at center, var(--bg-outer), var(--bg-inner));
+  background: var(--bg-inner);
   display: flex;
   justify-content: center;
   align-items: center;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-
-/* =========================
-   CLOCK SCALE
-========================= */
-.clock-scale {
-  transform: scale(1.15);
-  transform-origin: center;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* =========================
@@ -63,7 +59,11 @@ html, body {
 ========================= */
 .clock {
   display: flex;
-  gap: 8px;
+  gap: clamp(6px, 2vw, 8px);
+  padding: env(safe-area-inset-top)
+           env(safe-area-inset-right)
+           env(safe-area-inset-bottom)
+           env(safe-area-inset-left);
 }
 
 .card {
@@ -73,27 +73,27 @@ html, body {
   background: linear-gradient(to bottom, var(--card-top), var(--card-bottom));
   border-radius: var(--card-radius);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.018),
-    0 42px 90px rgba(0,0,0,0.9);
+    inset 0 1px 0 rgba(255,255,255,0.015),
+    0 28px 70px rgba(0,0,0,0.9);
   display: flex;
   justify-content: center;
   align-items: center;
   overflow: hidden;
 }
 
-/* subtle seam */
+/* seam (very subtle) */
 .card::after {
   content: "";
   position: absolute;
-  left: 14%;
-  right: 14%;
+  left: 18%;
+  right: 18%;
   top: 50%;
   height: 1px;
-  background: rgba(255,255,255,0.03);
+  background: rgba(255,255,255,0.025);
 }
 
 /* =========================
-   DIGITS (SYSTEM STYLE)
+   DIGITS (INSTANT SYSTEM STYLE)
 ========================= */
 .digit-wrapper {
   position: relative;
@@ -108,26 +108,19 @@ html, body {
   justify-content: center;
   align-items: center;
   font-size: var(--digit-size);
-  font-weight: 750;
+  font-weight: 700;
   color: var(--digit-color);
   line-height: 1;
   opacity: 1;
-  transform: scale(1);
-  transition:
-    opacity var(--anim-duration) var(--ease),
-    transform var(--anim-duration) var(--ease);
+  transition: opacity var(--anim-duration) var(--ease);
 }
 
-/* old digit */
 .digit.exit {
   opacity: 0;
-  transform: scale(0.96);
 }
 
-/* new digit */
 .digit.enter {
   opacity: 0;
-  transform: scale(1.04);
 }
 
 /* =========================
@@ -135,8 +128,8 @@ html, body {
 ========================= */
 .ampm {
   position: absolute;
-  top: 16px;
-  left: 20px;
+  top: clamp(10px, 3vw, 16px);
+  left: clamp(12px, 3vw, 20px);
   font-size: var(--accent-size);
   letter-spacing: 0.12em;
   font-weight: 600;
@@ -145,14 +138,14 @@ html, body {
 
 .seconds {
   position: absolute;
-  bottom: 16px;
-  right: 20px;
+  bottom: clamp(10px, 3vw, 16px);
+  right: clamp(12px, 3vw, 20px);
   font-size: var(--accent-size);
   letter-spacing: 0.12em;
   font-weight: 600;
   color: var(--accent-color);
-  opacity: 0.26;
-  will-change: transform, opacity;
+  opacity: 0.24;
+  will-change: opacity;
 }
 
 /* =========================
@@ -168,22 +161,20 @@ html, body {
 
 <body>
 
-<div class="clock-scale">
-  <div class="clock">
+<div class="clock">
 
-    <!-- HOURS -->
-    <div class="card">
-      <div class="ampm" id="ampm">AM</div>
-      <div class="digit-wrapper" id="hour"></div>
-    </div>
-
-    <!-- MINUTES -->
-    <div class="card">
-      <div class="seconds" id="seconds">00</div>
-      <div class="digit-wrapper" id="minute"></div>
-    </div>
-
+  <!-- HOURS -->
+  <div class="card">
+    <div class="ampm" id="ampm">AM</div>
+    <div class="digit-wrapper" id="hour"></div>
   </div>
+
+  <!-- MINUTES -->
+  <div class="card">
+    <div class="seconds" id="seconds">00</div>
+    <div class="digit-wrapper" id="minute"></div>
+  </div>
+
 </div>
 
 <script>
@@ -203,7 +194,7 @@ function getTimeParts() {
 }
 
 /* =========================
-   DIGIT UPDATE (FAST SYSTEM STYLE)
+   DIGIT UPDATE (INSTANT)
 ========================= */
 function updateDigit(container, value) {
   const current = container.querySelector(".digit");
@@ -220,7 +211,7 @@ function updateDigit(container, value) {
   });
 
   if (current) {
-    setTimeout(() => current.remove(), 220);
+    setTimeout(() => current.remove(), 140);
   }
 }
 
@@ -236,22 +227,14 @@ let lastH = null;
 let lastM = null;
 
 /* =========================
-   MAIN TICK (HOURS + MINUTES)
+   HOURS + MINUTES
 ========================= */
 function tick() {
   const { h, m, ampm } = getTimeParts();
 
   if (lastH === null) {
-    const hd = document.createElement("div");
-    hd.className = "digit";
-    hd.textContent = h;
-    hourEl.appendChild(hd);
-
-    const md = document.createElement("div");
-    md.className = "digit";
-    md.textContent = String(m).padStart(2, "0");
-    minuteEl.appendChild(md);
-
+    hourEl.innerHTML = `<div class="digit">${h}</div>`;
+    minuteEl.innerHTML = `<div class="digit">${String(m).padStart(2,"0")}</div>`;
     ampmEl.textContent = ampm;
     lastH = h;
     lastM = m;
@@ -262,7 +245,7 @@ function tick() {
       lastH = h;
     }
     if (m !== lastM) {
-      updateDigit(minuteEl, String(m).padStart(2, "0"));
+      updateDigit(minuteEl, String(m).padStart(2,"0"));
       lastM = m;
     }
   }
@@ -271,7 +254,7 @@ function tick() {
 }
 
 /* =========================
-   SMOOTH SECONDS (RAF)
+   SMOOTH SECONDS (OLED CALM)
 ========================= */
 function smoothSeconds() {
   const now = new Date();
@@ -279,9 +262,8 @@ function smoothSeconds() {
   const ms = now.getMilliseconds();
   const p = ms / 1000;
 
-  secEl.textContent = String(s).padStart(2, "0");
-  secEl.style.opacity = 0.26 + p * 0.18;
-  secEl.style.transform = `translateY(${-p}px)`;
+  secEl.textContent = String(s).padStart(2,"0");
+  secEl.style.opacity = 0.22 + p * 0.16;
 
   requestAnimationFrame(smoothSeconds);
 }
@@ -295,5 +277,3 @@ smoothSeconds();
 
 </body>
 </html>
-
-
