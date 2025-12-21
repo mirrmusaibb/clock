@@ -6,13 +6,21 @@
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="site.webmanifest">
+
 <meta charset="UTF-8" />
 <title>Clock</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
 <style>
 /* =========================
-   DESIGN TOKENS
+   HARD GUARANTEES
+========================= */
+html {
+  zoom: 1;
+}
+
+/* =========================
+   DESIGN TOKENS (DESKTOP)
 ========================= */
 :root {
   --bg: #000;
@@ -25,11 +33,12 @@
 
   --card-radius: 22px;
 
-  /* DEFAULT (DESKTOP) */
+  /* 🔒 FIXED DESKTOP SIZE */
   --card-size: 260px;
 
-  --digit-size: 9.4rem;
-  --accent-size: 0.9rem;
+  /* FIXED DESKTOP FONTS */
+  --digit-size: 150px;
+  --accent-size: 14px;
 
   --anim-duration: 110ms;
 }
@@ -56,21 +65,21 @@ html, body {
 .clock {
   display: flex;
   gap: 8px;
-  padding: env(safe-area-inset-top)
-           env(safe-area-inset-right)
-           env(safe-area-inset-bottom)
-           env(safe-area-inset-left);
 }
 
 .card {
+  width: 260px;
+  height: 260px;
+  min-width: 260px;
+  min-height: 260px;
+
   position: relative;
-  width: var(--card-size);
-  height: var(--card-size);
   background: linear-gradient(to bottom, var(--card-top), var(--card-bottom));
   border-radius: var(--card-radius);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.015),
     0 28px 70px rgba(0,0,0,0.9);
+
   display: flex;
   justify-content: center;
   align-items: center;
@@ -92,9 +101,9 @@ html, body {
    DIGITS (INSTANT)
 ========================= */
 .digit-wrapper {
-  position: relative;
   width: 100%;
   height: 100%;
+  position: relative;
 }
 
 .digit {
@@ -103,11 +112,14 @@ html, body {
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: var(--digit-size);
+
+  font-size: 150px;
   font-weight: 700;
-  color: var(--digit-color);
   line-height: 1;
+
+  color: var(--digit-color);
   opacity: 1;
+
   transition: opacity var(--anim-duration) linear;
 }
 
@@ -121,7 +133,7 @@ html, body {
   position: absolute;
   top: 16px;
   left: 20px;
-  font-size: var(--accent-size);
+  font-size: 14px;
   letter-spacing: 0.12em;
   font-weight: 600;
   color: var(--accent-color);
@@ -131,7 +143,7 @@ html, body {
   position: absolute;
   bottom: 16px;
   right: 20px;
-  font-size: var(--accent-size);
+  font-size: 14px;
   letter-spacing: 0.12em;
   font-weight: 600;
   color: var(--accent-color);
@@ -140,26 +152,18 @@ html, body {
 }
 
 /* =========================
-   MOBILE OVERRIDES
+   MOBILE ONLY
 ========================= */
 @media (max-width: 767px) {
-  :root {
-    --card-size: clamp(170px, 42vw, 220px);
-    --digit-size: clamp(6.2rem, 15vw, 8rem);
-    --accent-size: clamp(0.7rem, 2.6vw, 0.85rem);
+  .card {
+    width: 200px;
+    height: 200px;
+    min-width: 200px;
+    min-height: 200px;
   }
 
-  .clock {
-    gap: 6px;
-  }
-}
-
-/* =========================
-   REDUCED MOTION
-========================= */
-@media (prefers-reduced-motion: reduce) {
   .digit {
-    transition: none;
+    font-size: 110px;
   }
 }
 </style>
@@ -184,24 +188,16 @@ html, body {
 </div>
 
 <script>
-/* =========================
-   TIME HELPERS
-========================= */
 function getTimeParts() {
   const now = new Date();
   let h = now.getHours();
   const m = now.getMinutes();
   const s = now.getSeconds();
-
   const ampm = h >= 12 ? "PM" : "AM";
   h = h % 12 || 12;
-
   return { h, m, s, ampm };
 }
 
-/* =========================
-   DIGIT UPDATE
-========================= */
 function updateDigit(container, value) {
   const current = container.querySelector(".digit");
   if (current && current.textContent === value) return;
@@ -219,9 +215,6 @@ function updateDigit(container, value) {
   if (current) setTimeout(() => current.remove(), 140);
 }
 
-/* =========================
-   ELEMENTS
-========================= */
 const hourEl = document.getElementById("hour");
 const minuteEl = document.getElementById("minute");
 const ampmEl = document.getElementById("ampm");
@@ -230,9 +223,6 @@ const secEl = document.getElementById("seconds");
 let lastH = null;
 let lastM = null;
 
-/* =========================
-   HOURS + MINUTES
-========================= */
 function tick() {
   const { h, m, ampm } = getTimeParts();
 
@@ -257,9 +247,6 @@ function tick() {
   setTimeout(tick, 1000 - new Date().getMilliseconds());
 }
 
-/* =========================
-   SMOOTH SECONDS
-========================= */
 function smoothSeconds() {
   const now = new Date();
   const s = now.getSeconds();
@@ -272,9 +259,6 @@ function smoothSeconds() {
   requestAnimationFrame(smoothSeconds);
 }
 
-/* =========================
-   START
-========================= */
 tick();
 smoothSeconds();
 </script>
