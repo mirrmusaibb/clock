@@ -2,23 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title> Clock</title>
+<title>Refined Clock</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 :root {
   --bg: #000;
-  --card: #111;
-  --card-dark: #0a0a0a;
   --digit: #f2f2f2;
   --accent: rgba(255,255,255,0.3);
 
   --size: 260px;
   --radius: 28px;
   --digit-size: 9.8rem;
-
-  --flip-duration: 600ms;
-  --ease: cubic-bezier(.4,.0,.2,1);
+  --fade: 180ms;
 }
 
 * { box-sizing: border-box; }
@@ -45,7 +41,6 @@ html, body {
   border-radius: var(--radius);
   box-shadow: 0 40px 80px rgba(0,0,0,.9);
   position: relative;
-  perspective: 1200px;
   overflow: hidden;
 }
 
@@ -58,14 +53,23 @@ html, body {
   top: 50%;
   height: 1px;
   background: rgba(255,255,255,.05);
-  z-index: 5;
 }
 
-/* ================= FLIP DIGIT ================= */
+/* ================= DIGIT ================= */
 
-.flip {
+.display {
   position: absolute;
   inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: .15em;
+}
+
+.digit {
+  position: relative;
+  width: .65em;
+  height: 1.2em;
 }
 
 .half {
@@ -75,56 +79,21 @@ html, body {
   overflow: hidden;
   display: flex;
   justify-content: center;
-  align-items: center;
   font-size: var(--digit-size);
   font-weight: 700;
   color: var(--digit);
-  backface-visibility: hidden;
 }
 
-.half.top {
-  top: 0;
-}
-
-.half.bottom {
-  bottom: 0;
-}
+.half.top { top: 0; }
+.half.bottom { bottom: 0; }
 
 .half span {
-  transform: translateY(50%);
+  display: inline-block;
+  transition: opacity var(--fade) ease-out;
 }
 
-.half.bottom span {
-  transform: translateY(-50%);
-}
-
-/* animated flap */
-.flap {
-  position: absolute;
-  width: 100%;
-  height: 50%;
-  top: 0;
-  background: linear-gradient(#151515, #0d0d0d);
-  border-radius: var(--radius) var(--radius) 0 0;
-  transform-origin: bottom;
-  transform: rotateX(0deg);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: var(--digit-size);
-  font-weight: 700;
-  color: var(--digit);
-  backface-visibility: hidden;
-}
-
-.flap.animate {
-  animation: flipDown var(--flip-duration) var(--ease) forwards;
-}
-
-@keyframes flipDown {
-  0%   { transform: rotateX(0deg); }
-  100% { transform: rotateX(-90deg); }
-}
+.half.top span { transform: translateY(50%); }
+.half.bottom span { transform: translateY(-50%); }
 
 /* ================= ACCENTS ================= */
 
@@ -153,41 +122,53 @@ html, body {
 <div class="clock">
   <div class="card">
     <div class="ampm" id="ampm">AM</div>
-    <div class="flip" id="hour"></div>
+    <div class="display" id="hour"></div>
   </div>
+
   <div class="card">
     <div class="seconds" id="sec">00</div>
-    <div class="flip" id="minute"></div>
+    <div class="display" id="minute"></div>
   </div>
 </div>
 
 <script>
-function createFlip(container, value) {
-  container.innerHTML = `
-    <div class="half top"><span>${value}</span></div>
-    <div class="half bottom"><span>${value}</span></div>
-    <div class="flap"><span>${value}</span></div>
+function createDigit(char) {
+  const d = document.createElement("div");
+  d.className = "digit";
+  d.innerHTML = `
+    <div class="half top"><span>${char}</span></div>
+    <div class="half bottom"><span>${char}</span></div>
   `;
+  return d;
 }
 
-function flip(container, newValue) {
-  const top = container.querySelector('.half.top span');
-  const bottom = container.querySelector('.half.bottom span');
-  const flap = container.querySelector('.flap span');
-  const flapEl = container.querySelector('.flap');
+function updateDigit(digitEl, char) {
+  const spans = digitEl.querySelectorAll("span");
+  if (spans[0].textContent === char) return;
 
-  if (top.textContent === newValue) return;
-
-  flap.textContent = top.textContent;
-  flapEl.classList.remove('animate');
-  void flapEl.offsetWidth;
-  flapEl.classList.add('animate');
+  spans.forEach(s => {
+    s.style.opacity = "0";
+  });
 
   setTimeout(() => {
-    top.textContent = newValue;
-    bottom.textContent = newValue;
-    flapEl.classList.remove('animate');
-  }, 600);
+    spans.forEach(s => {
+      s.textContent = char;
+      s.style.opacity = "1";
+    });
+  }, 80);
+}
+
+function setDisplay(container, value) {
+  const chars = String(value).split("");
+
+  if (container.children.length === 0) {
+    chars.forEach(c => container.appendChild(createDigit(c)));
+    return;
+  }
+
+  chars.forEach((c, i) => {
+    updateDigit(container.children[i], c);
+  });
 }
 
 function getTime() {
@@ -205,32 +186,18 @@ const minEl = document.getElementById("minute");
 const secEl = document.getElementById("sec");
 const ampmEl = document.getElementById("ampm");
 
-let lastH = null;
-let lastM = null;
-
 function tick() {
   const { h, m, s, ampm } = getTime();
 
-  if (lastH === null) {
-    createFlip(hourEl, h);
-    createFlip(minEl, String(m).padStart(2,"0"));
-    lastH = h;
-    lastM = m;
-  } else {
-    if (h !== lastH) {
-      flip(hourEl, h);
-      lastH = h;
-    }
-    if (m !== lastM) {
-      flip(minEl, String(m).padStart(2,"0"));
-      lastM = m;
-    }
-  }
+  setDisplay(hourEl, h);
+  setDisplay(minEl, String(m).padStart(2, "0"));
 
+  secEl.textContent = String(s).padStart(2, "0");
   ampmEl.textContent = ampm;
-  secEl.textContent = String(s).padStart(2,"0");
 
-  setTimeout(tick, 1000);
+  const now = Date.now();
+  const delay = 1000 - (now % 1000);
+  setTimeout(tick, delay);
 }
 
 tick();
