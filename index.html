@@ -2,19 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Refined Clock</title>
+<title>Clock</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 :root {
   --bg: #000;
+  --card: #111;
   --digit: #f2f2f2;
   --accent: rgba(255,255,255,0.3);
 
   --size: 260px;
   --radius: 28px;
   --digit-size: 9.8rem;
-  --fade: 180ms;
+
+  --fade: 160ms;
 }
 
 * { box-sizing: border-box; }
@@ -53,23 +55,14 @@ html, body {
   top: 50%;
   height: 1px;
   background: rgba(255,255,255,.05);
+  z-index: 5;
 }
 
 /* ================= DIGIT ================= */
 
-.display {
+.flip {
   position: absolute;
   inset: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: .15em;
-}
-
-.digit {
-  position: relative;
-  width: .65em;
-  height: 1.2em;
 }
 
 .half {
@@ -79,6 +72,7 @@ html, body {
   overflow: hidden;
   display: flex;
   justify-content: center;
+  align-items: center;
   font-size: var(--digit-size);
   font-weight: 700;
   color: var(--digit);
@@ -89,6 +83,7 @@ html, body {
 
 .half span {
   display: inline-block;
+  opacity: 1;
   transition: opacity var(--fade) ease-out;
 }
 
@@ -122,53 +117,38 @@ html, body {
 <div class="clock">
   <div class="card">
     <div class="ampm" id="ampm">AM</div>
-    <div class="display" id="hour"></div>
+    <div class="flip" id="hour"></div>
   </div>
 
   <div class="card">
     <div class="seconds" id="sec">00</div>
-    <div class="display" id="minute"></div>
+    <div class="flip" id="minute"></div>
   </div>
 </div>
 
 <script>
-function createDigit(char) {
-  const d = document.createElement("div");
-  d.className = "digit";
-  d.innerHTML = `
-    <div class="half top"><span>${char}</span></div>
-    <div class="half bottom"><span>${char}</span></div>
+function createDisplay(container, value) {
+  container.innerHTML = `
+    <div class="half top"><span>${value}</span></div>
+    <div class="half bottom"><span>${value}</span></div>
   `;
-  return d;
 }
 
-function updateDigit(digitEl, char) {
-  const spans = digitEl.querySelectorAll("span");
-  if (spans[0].textContent === char) return;
+function updateDisplay(container, value) {
+  const top = container.querySelector('.half.top span');
+  const bottom = container.querySelector('.half.bottom span');
 
-  spans.forEach(s => {
-    s.style.opacity = "0";
-  });
+  if (top.textContent === value) return;
+
+  top.style.opacity = "0";
+  bottom.style.opacity = "0";
 
   setTimeout(() => {
-    spans.forEach(s => {
-      s.textContent = char;
-      s.style.opacity = "1";
-    });
+    top.textContent = value;
+    bottom.textContent = value;
+    top.style.opacity = "1";
+    bottom.style.opacity = "1";
   }, 80);
-}
-
-function setDisplay(container, value) {
-  const chars = String(value).split("");
-
-  if (container.children.length === 0) {
-    chars.forEach(c => container.appendChild(createDigit(c)));
-    return;
-  }
-
-  chars.forEach((c, i) => {
-    updateDigit(container.children[i], c);
-  });
 }
 
 function getTime() {
@@ -186,11 +166,19 @@ const minEl = document.getElementById("minute");
 const secEl = document.getElementById("sec");
 const ampmEl = document.getElementById("ampm");
 
+let initialized = false;
+
 function tick() {
   const { h, m, s, ampm } = getTime();
 
-  setDisplay(hourEl, h);
-  setDisplay(minEl, String(m).padStart(2, "0"));
+  if (!initialized) {
+    createDisplay(hourEl, h);
+    createDisplay(minEl, String(m).padStart(2, "0"));
+    initialized = true;
+  } else {
+    updateDisplay(hourEl, h);
+    updateDisplay(minEl, String(m).padStart(2, "0"));
+  }
 
   secEl.textContent = String(s).padStart(2, "0");
   ampmEl.textContent = ampm;
