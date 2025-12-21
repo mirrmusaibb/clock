@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Aesthetic Clock</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<style>
+/* =========================
+   DESIGN TOKENS
+========================= */
+:root {
+  --bg-outer: #0b0b0b;
+  --bg-inner: #000;
+
+  --card-top: #121212;
+  --card-bottom: #0a0a0a;
+
+  --digit-color: #f2f2f2;
+  --accent-color: rgba(255,255,255,0.32);
+
+  --card-radius: 26px;
+
+  /* Near-square cards */
+  --card-width: 260px;
+  --card-height: 230px;
+
+  /* Big, confident digits */
+  --digit-size: 9.6rem;
+  --accent-size: 0.9rem;
+
+  --ease: cubic-bezier(.22,.61,.36,1);
+  --anim-duration: 520ms;
+}
+
+/* =========================
+   BASE
+========================= */
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: radial-gradient(circle at center, var(--bg-outer), var(--bg-inner));
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* =========================
+   LAYOUT
+========================= */
+.clock {
+  display: flex;
+  gap: 22px;
+}
+
+.card {
+  position: relative;
+  width: var(--card-width);
+  height: var(--card-height);
+  background: linear-gradient(to bottom, var(--card-top), var(--card-bottom));
+  border-radius: var(--card-radius);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.025),
+    0 45px 90px rgba(0,0,0,0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+/* subtle mid seam */
+.card::after {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 50%;
+  height: 1px;
+  background: rgba(0,0,0,0.26);
+}
+
+/* =========================
+   DIGITS
+========================= */
+.digit-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.digit {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: var(--digit-size);
+  font-weight: 700;
+  color: var(--digit-color);
+  line-height: 1;
+  transform: translateY(0);
+  opacity: 1;
+  transition:
+    transform var(--anim-duration) var(--ease),
+    opacity var(--anim-duration) var(--ease);
+}
+
+.digit.enter {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+.digit.exit {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+/* =========================
+   ACCENTS
+========================= */
+.ampm {
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  font-size: var(--accent-size);
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  color: var(--accent-color);
+}
+
+.seconds {
+  position: absolute;
+  bottom: 14px;
+  right: 18px;
+  font-size: var(--accent-size);
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  color: var(--accent-color);
+  transition:
+    opacity 280ms var(--ease),
+    transform 280ms var(--ease);
+}
+</style>
+</head>
+
+<body>
+
+<div class="clock">
+
+  <!-- HOURS -->
+  <div class="card">
+    <div class="ampm" id="ampm">AM</div>
+    <div class="digit-wrapper" id="hour"></div>
+  </div>
+
+  <!-- MINUTES -->
+  <div class="card">
+    <div class="seconds" id="seconds">00</div>
+    <div class="digit-wrapper" id="minute"></div>
+  </div>
+
+</div>
+
+<script>
+/* =========================
+   TIME ENGINE
+========================= */
+function getTimeParts() {
+  const now = new Date();
+
+  let h = now.getHours();
+  const m = now.getMinutes();
+  const s = now.getSeconds();
+
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12;
+  if (h === 0) h = 12;
+
+  return { h, m, s, ampm };
+}
+
+/* =========================
+   DIGIT ENGINE
+========================= */
+function updateDigit(container, value) {
+  const current = container.querySelector(".digit");
+
+  if (current && current.textContent === value) return;
+
+  const next = document.createElement("div");
+  next.className = "digit enter";
+  next.textContent = value;
+
+  container.appendChild(next);
+
+  requestAnimationFrame(() => {
+    next.classList.remove("enter");
+    if (current) current.classList.add("exit");
+  });
+
+  if (current) {
+    setTimeout(() => current.remove(), 600);
+  }
+}
+
+/* =========================
+   LOOP
+========================= */
+const hourEl = document.getElementById("hour");
+const minuteEl = document.getElementById("minute");
+const ampmEl = document.getElementById("ampm");
+const secEl = document.getElementById("seconds");
+
+let lastHour = null;
+let lastMinute = null;
+
+function tick() {
+  const { h, m, s, ampm } = getTimeParts();
+
+  if (lastHour === null) {
+    // initial render (no animation)
+    const hd = document.createElement("div");
+    hd.className = "digit";
+    hd.textContent = h;
+    hourEl.appendChild(hd);
+
+    const md = document.createElement("div");
+    md.className = "digit";
+    md.textContent = String(m).padStart(2, "0");
+    minuteEl.appendChild(md);
+
+    ampmEl.textContent = ampm;
+
+    lastHour = h;
+    lastMinute = m;
+  } else {
+    if (h !== lastHour) {
+      updateDigit(hourEl, h);
+      ampmEl.textContent = ampm;
+      lastHour = h;
+    }
+
+    if (m !== lastMinute) {
+      updateDigit(minuteEl, String(m).padStart(2, "0"));
+      lastMinute = m;
+    }
+  }
+
+  // seconds: subtle micro-motion
+  secEl.textContent = String(s).padStart(2, "0");
+  secEl.style.opacity = "0.55";
+  secEl.style.transform = "translateY(-1px)";
+  setTimeout(() => {
+    secEl.style.opacity = "0.32";
+    secEl.style.transform = "translateY(0)";
+  }, 120);
+
+  setTimeout(tick, 1000);
+}
+
+tick();
+</script>
+
+</body>
+</html>
