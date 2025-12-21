@@ -12,46 +12,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
 <style>
-/* =========================
-   HARD GUARANTEES
-========================= */
-html {
-  zoom: 1;
-}
-
-/* =========================
-   DESIGN TOKENS (DESKTOP)
-========================= */
-:root {
-  --bg: #000;
-
-  --card-top: #0b0b0b;
-  --card-bottom: #060606;
-
-  --digit-color: #f5f5f5;
-  --accent-color: rgba(255,255,255,0.22);
-
-  --card-radius: 22px;
-
-  /* 🔒 FIXED DESKTOP SIZE */
-  --card-size: 260px;
-
-  /* FIXED DESKTOP FONTS */
-  --digit-size: 150px;
-  --accent-size: 14px;
-
-  --anim-duration: 110ms;
-}
-
-/* =========================
-   BASE
-========================= */
+/* ===== RESET ===== */
 * { box-sizing: border-box; }
-
 html, body {
   margin: 0;
   height: 100%;
-  background: var(--bg);
+  background: #000;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -59,34 +25,28 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* =========================
-   LAYOUT
-========================= */
+/* ===== LAYOUT ===== */
 .clock {
   display: flex;
   gap: 8px;
 }
 
+/* ===== CARD (DESKTOP FIXED) ===== */
 .card {
   width: 260px;
   height: 260px;
-  min-width: 260px;
-  min-height: 260px;
-
   position: relative;
-  background: linear-gradient(to bottom, var(--card-top), var(--card-bottom));
-  border-radius: var(--card-radius);
+  background: linear-gradient(to bottom, #0b0b0b, #060606);
+  border-radius: 22px;
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.015),
     0 28px 70px rgba(0,0,0,0.9);
-
   display: flex;
   justify-content: center;
   align-items: center;
   overflow: hidden;
 }
 
-/* seam */
 .card::after {
   content: "";
   position: absolute;
@@ -97,38 +57,31 @@ html, body {
   background: rgba(255,255,255,0.025);
 }
 
-/* =========================
-   DIGITS (INSTANT)
-========================= */
+/* ===== DIGITS ===== */
 .digit-wrapper {
+  position: relative;
   width: 100%;
   height: 100%;
-  position: relative;
 }
 
 .digit {
   position: absolute;
   inset: 0;
   display: flex;
-  justify-content: center;
   align-items: center;
-
+  justify-content: center;
   font-size: 150px;
   font-weight: 700;
+  color: #f5f5f5;
   line-height: 1;
-
-  color: var(--digit-color);
   opacity: 1;
-
-  transition: opacity var(--anim-duration) linear;
+  transition: opacity 110ms linear;
 }
 
-.digit.exit { opacity: 0; }
 .digit.enter { opacity: 0; }
+.digit.exit  { opacity: 0; }
 
-/* =========================
-   ACCENTS
-========================= */
+/* ===== ACCENTS ===== */
 .ampm {
   position: absolute;
   top: 16px;
@@ -136,7 +89,7 @@ html, body {
   font-size: 14px;
   letter-spacing: 0.12em;
   font-weight: 600;
-  color: var(--accent-color);
+  color: rgba(255,255,255,0.22);
 }
 
 .seconds {
@@ -146,24 +99,39 @@ html, body {
   font-size: 14px;
   letter-spacing: 0.12em;
   font-weight: 600;
-  color: var(--accent-color);
+  color: rgba(255,255,255,0.22);
   opacity: 0.24;
   will-change: opacity;
 }
 
-/* =========================
-   MOBILE ONLY
-========================= */
-@media (max-width: 767px) {
+/* ===== MOBILE OPTIMIZATION ===== */
+@media (max-width: 640px) {
+  body {
+    align-items: flex-start;
+  }
+
+  .clock {
+    gap: 6px;
+    margin-top: 24px;
+  }
+
   .card {
-    width: 200px;
-    height: 200px;
-    min-width: 200px;
-    min-height: 200px;
+    width: 180px;
+    height: 180px;
+    border-radius: 18px;
   }
 
   .digit {
-    font-size: 110px;
+    font-size: 105px;
+  }
+
+  .ampm,
+  .seconds {
+    font-size: 12px;
+    top: 12px;
+    left: 14px;
+    right: 14px;
+    bottom: 12px;
   }
 }
 </style>
@@ -173,13 +141,11 @@ html, body {
 
 <div class="clock">
 
-  <!-- HOURS -->
   <div class="card">
     <div class="ampm" id="ampm">AM</div>
     <div class="digit-wrapper" id="hour"></div>
   </div>
 
-  <!-- MINUTES -->
   <div class="card">
     <div class="seconds" id="seconds">00</div>
     <div class="digit-wrapper" id="minute"></div>
@@ -189,18 +155,18 @@ html, body {
 
 <script>
 function getTimeParts() {
-  const now = new Date();
-  let h = now.getHours();
-  const m = now.getMinutes();
-  const s = now.getSeconds();
+  const d = new Date();
+  let h = d.getHours();
+  const m = d.getMinutes();
+  const s = d.getSeconds();
   const ampm = h >= 12 ? "PM" : "AM";
   h = h % 12 || 12;
   return { h, m, s, ampm };
 }
 
 function updateDigit(container, value) {
-  const current = container.querySelector(".digit");
-  if (current && current.textContent === value) return;
+  const cur = container.querySelector(".digit");
+  if (cur && cur.textContent === value) return;
 
   const next = document.createElement("div");
   next.className = "digit enter";
@@ -209,10 +175,10 @@ function updateDigit(container, value) {
 
   requestAnimationFrame(() => {
     next.classList.remove("enter");
-    if (current) current.classList.add("exit");
+    if (cur) cur.classList.add("exit");
   });
 
-  if (current) setTimeout(() => current.remove(), 140);
+  if (cur) setTimeout(() => cur.remove(), 140);
 }
 
 const hourEl = document.getElementById("hour");
@@ -224,7 +190,7 @@ let lastH = null;
 let lastM = null;
 
 function tick() {
-  const { h, m, ampm } = getTimeParts();
+  const { h, m, s, ampm } = getTimeParts();
 
   if (lastH === null) {
     hourEl.innerHTML = `<div class="digit">${h}</div>`;
@@ -244,18 +210,14 @@ function tick() {
     }
   }
 
+  secEl.textContent = String(s).padStart(2,"0");
   setTimeout(tick, 1000 - new Date().getMilliseconds());
 }
 
 function smoothSeconds() {
-  const now = new Date();
-  const s = now.getSeconds();
-  const ms = now.getMilliseconds();
-  const p = ms / 1000;
-
-  secEl.textContent = String(s).padStart(2,"0");
+  const d = new Date();
+  const p = d.getMilliseconds() / 1000;
   secEl.style.opacity = 0.22 + p * 0.16;
-
   requestAnimationFrame(smoothSeconds);
 }
 
