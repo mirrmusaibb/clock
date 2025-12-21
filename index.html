@@ -1,191 +1,255 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Clock</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<title>Aesthetic Clock</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
 <style>
+/* =========================
+   DESIGN TOKENS
+========================= */
 :root {
-  --bg: #000;
-  --card: #111;
-  --digit: #f2f2f2;
-  --accent: rgba(255,255,255,0.3);
+  --bg-outer: #090909;
+  --bg-inner: #000000;
 
-  --size: 260px;
-  --radius: 28px;
-  --digit-size: 9.8rem;
+  /* DARKER & SUBTLER */
+  --card-top: #101010;
+  --card-bottom: #070707;
 
-  --fade: 160ms;
+  --digit-color: #f1f1f1;
+  --accent-color: rgba(255,255,255,0.26);
+
+  --card-radius: 26px;
+
+  /* REDUCED SIZE */
+  --card-size: 260px;
+
+  /* DIGITS */
+  --digit-size: 9.6rem;
+  --accent-size: 0.9rem;
+
+  --ease: cubic-bezier(.22,.61,.36,1);
+  --anim-duration: 460ms;
 }
 
+/* =========================
+   BASE
+========================= */
 * { box-sizing: border-box; }
 
 html, body {
   margin: 0;
   height: 100%;
-  background: radial-gradient(circle, #111, #000);
+  background: radial-gradient(circle at center, var(--bg-outer), var(--bg-inner));
   display: flex;
   justify-content: center;
   align-items: center;
-  font-family: system-ui, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+/* =========================
+   CLOCK SCALE
+========================= */
+.clock-scale {
+  /* slightly reduced for balance */
+  transform: scale(1.15);
+  transform-origin: center;
+}
+
+/* =========================
+   LAYOUT
+========================= */
 .clock {
   display: flex;
-  gap: 12px;
+  gap: 8px; /* tighter spacing */
 }
 
 .card {
-  width: var(--size);
-  height: var(--size);
-  background: linear-gradient(#141414, #0a0a0a);
-  border-radius: var(--radius);
-  box-shadow: 0 40px 80px rgba(0,0,0,.9);
   position: relative;
+  width: var(--card-size);
+  height: var(--card-size);
+  background: linear-gradient(to bottom, var(--card-top), var(--card-bottom));
+  border-radius: var(--card-radius);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.018),
+    0 42px 90px rgba(0,0,0,0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
   overflow: hidden;
 }
 
-/* seam */
+/* subtler seam */
 .card::after {
   content: "";
   position: absolute;
-  left: 12%;
-  right: 12%;
+  left: 14%;
+  right: 14%;
   top: 50%;
   height: 1px;
-  background: rgba(255,255,255,.05);
-  z-index: 5;
+  background: rgba(255,255,255,0.03);
 }
 
-/* ================= DIGIT ================= */
+/* =========================
+   DIGITS
+========================= */
+.digit-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
 
-.flip {
+.digit {
   position: absolute;
   inset: 0;
-}
-
-.half {
-  position: absolute;
-  width: 100%;
-  height: 50%;
-  overflow: hidden;
   display: flex;
   justify-content: center;
   align-items: center;
   font-size: var(--digit-size);
-  font-weight: 700;
-  color: var(--digit);
+  font-weight: 750; /* slightly bolder */
+  color: var(--digit-color);
+  line-height: 1;
+  transform: translateY(-1px);
+  transition:
+    transform var(--anim-duration) var(--ease),
+    opacity var(--anim-duration) var(--ease);
 }
 
-.half.top { top: 0; }
-.half.bottom { bottom: 0; }
-
-.half span {
-  display: inline-block;
-  opacity: 1;
-  transition: opacity var(--fade) ease-out;
+.digit.enter {
+  transform: translateY(100%);
+  opacity: 0;
 }
 
-.half.top span { transform: translateY(50%); }
-.half.bottom span { transform: translateY(-50%); }
+.digit.exit {
+  transform: translateY(-100%);
+  opacity: 0;
+}
 
-/* ================= ACCENTS ================= */
-
+/* =========================
+   ACCENTS
+========================= */
 .ampm {
   position: absolute;
-  top: 14px;
-  left: 18px;
-  font-size: .85rem;
-  letter-spacing: .12em;
-  color: var(--accent);
+  top: 16px;
+  left: 20px;
+  font-size: var(--accent-size);
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  color: var(--accent-color);
 }
 
 .seconds {
   position: absolute;
-  bottom: 14px;
-  right: 18px;
-  font-size: .85rem;
-  letter-spacing: .12em;
-  color: var(--accent);
+  bottom: 16px;
+  right: 20px;
+  font-size: var(--accent-size);
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  color: var(--accent-color);
+  transition:
+    opacity 240ms var(--ease),
+    transform 240ms var(--ease);
 }
 </style>
 </head>
 
 <body>
 
-<div class="clock">
-  <div class="card">
-    <div class="ampm" id="ampm">AM</div>
-    <div class="flip" id="hour"></div>
-  </div>
+<div class="clock-scale">
+  <div class="clock">
 
-  <div class="card">
-    <div class="seconds" id="sec">00</div>
-    <div class="flip" id="minute"></div>
+    <!-- HOURS -->
+    <div class="card">
+      <div class="ampm" id="ampm">AM</div>
+      <div class="digit-wrapper" id="hour"></div>
+    </div>
+
+    <!-- MINUTES -->
+    <div class="card">
+      <div class="seconds" id="seconds">00</div>
+      <div class="digit-wrapper" id="minute"></div>
+    </div>
+
   </div>
 </div>
 
 <script>
-function createDisplay(container, value) {
-  container.innerHTML = `
-    <div class="half top"><span>${value}</span></div>
-    <div class="half bottom"><span>${value}</span></div>
-  `;
-}
+function getTimeParts() {
+  const now = new Date();
+  let h = now.getHours();
+  const m = now.getMinutes();
+  const s = now.getSeconds();
 
-function updateDisplay(container, value) {
-  const top = container.querySelector('.half.top span');
-  const bottom = container.querySelector('.half.bottom span');
-
-  if (top.textContent === value) return;
-
-  top.style.opacity = "0";
-  bottom.style.opacity = "0";
-
-  setTimeout(() => {
-    top.textContent = value;
-    bottom.textContent = value;
-    top.style.opacity = "1";
-    bottom.style.opacity = "1";
-  }, 80);
-}
-
-function getTime() {
-  const d = new Date();
-  let h = d.getHours();
-  const m = d.getMinutes();
-  const s = d.getSeconds();
   const ampm = h >= 12 ? "PM" : "AM";
   h = h % 12 || 12;
+
   return { h, m, s, ampm };
 }
 
-const hourEl = document.getElementById("hour");
-const minEl = document.getElementById("minute");
-const secEl = document.getElementById("sec");
-const ampmEl = document.getElementById("ampm");
+function updateDigit(container, value) {
+  const current = container.querySelector(".digit");
+  if (current && current.textContent === value) return;
 
-let initialized = false;
+  const next = document.createElement("div");
+  next.className = "digit enter";
+  next.textContent = value;
+  container.appendChild(next);
+
+  requestAnimationFrame(() => {
+    next.classList.remove("enter");
+    if (current) current.classList.add("exit");
+  });
+
+  if (current) setTimeout(() => current.remove(), 600);
+}
+
+const hourEl = document.getElementById("hour");
+const minuteEl = document.getElementById("minute");
+const ampmEl = document.getElementById("ampm");
+const secEl = document.getElementById("seconds");
+
+let lastH = null;
+let lastM = null;
 
 function tick() {
-  const { h, m, s, ampm } = getTime();
+  const { h, m, s, ampm } = getTimeParts();
 
-  if (!initialized) {
-    createDisplay(hourEl, h);
-    createDisplay(minEl, String(m).padStart(2, "0"));
-    initialized = true;
+  if (lastH === null) {
+    const hd = document.createElement("div");
+    hd.className = "digit";
+    hd.textContent = h;
+    hourEl.appendChild(hd);
+
+    const md = document.createElement("div");
+    md.className = "digit";
+    md.textContent = String(m).padStart(2, "0");
+    minuteEl.appendChild(md);
+
+    ampmEl.textContent = ampm;
+    lastH = h;
+    lastM = m;
   } else {
-    updateDisplay(hourEl, h);
-    updateDisplay(minEl, String(m).padStart(2, "0"));
+    if (h !== lastH) {
+      updateDigit(hourEl, h);
+      ampmEl.textContent = ampm;
+      lastH = h;
+    }
+    if (m !== lastM) {
+      updateDigit(minuteEl, String(m).padStart(2, "0"));
+      lastM = m;
+    }
   }
 
   secEl.textContent = String(s).padStart(2, "0");
-  ampmEl.textContent = ampm;
+  secEl.style.opacity = "0.55";
+  secEl.style.transform = "translateY(-1px)";
+  setTimeout(() => {
+    secEl.style.opacity = "0.26";
+    secEl.style.transform = "translateY(0)";
+  }, 120);
 
-  const now = Date.now();
-  const delay = 1000 - (now % 1000);
-  setTimeout(tick, delay);
+  setTimeout(tick, 1000);
 }
 
 tick();
