@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>True Flip Clock</title>
+<title>Clock</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -22,7 +22,7 @@
   --digit-size: 10rem;
   --accent-size: 0.9rem;
 
-  --flip-duration: 700ms;
+  --flip-duration: 650ms;
   --ease-in: cubic-bezier(.55,.06,.68,.19);
   --ease-out: cubic-bezier(.22,.61,.36,1);
 }
@@ -39,9 +39,7 @@ html, body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-.clock-scale {
-  transform: scale(1.15);
-}
+.clock-scale { transform: scale(1.15); }
 
 .clock {
   display: flex;
@@ -74,7 +72,7 @@ html, body {
 }
 
 /* =====================
-   FLIP STRUCTURE
+   FLIP PANELS
 ===================== */
 .flip {
   position: absolute;
@@ -83,9 +81,9 @@ html, body {
 
 .panel {
   position: absolute;
-  left: 0;
   width: 100%;
   height: 50%;
+  left: 0;
   overflow: hidden;
   display: flex;
   justify-content: center;
@@ -97,11 +95,7 @@ html, body {
 }
 
 .panel span {
-  transform: translateY(50%);
-}
-
-.bottom span {
-  transform: translateY(-50%);
+  display: block;
 }
 
 .top {
@@ -114,25 +108,22 @@ html, body {
   transform-origin: top;
 }
 
-/* =====================
-   FLIP ANIMATION
-===================== */
-.flip.animate .top.old {
-  animation: topFlip var(--flip-duration) var(--ease-in) forwards;
+/* default states */
+.top.old { transform: rotateX(0deg); }
+.bottom.old { transform: rotateX(0deg); }
+
+.top.new { transform: rotateX(90deg); }
+.bottom.new { transform: rotateX(-90deg); }
+
+/* animation states */
+.flip.animating .top.old {
+  transition: transform var(--flip-duration) var(--ease-in);
+  transform: rotateX(-90deg);
 }
 
-.flip.animate .bottom.new {
-  animation: bottomFlip var(--flip-duration) var(--ease-out) forwards;
-}
-
-@keyframes topFlip {
-  0%   { transform: rotateX(0deg); }
-  100% { transform: rotateX(-90deg); }
-}
-
-@keyframes bottomFlip {
-  0%   { transform: rotateX(90deg); }
-  100% { transform: rotateX(0deg); }
+.flip.animating .bottom.new {
+  transition: transform var(--flip-duration) var(--ease-out);
+  transform: rotateX(0deg);
 }
 
 /* =====================
@@ -191,25 +182,32 @@ function buildFlip(container, value) {
 }
 
 function flipTo(container, value) {
-  const oldTop = container.querySelector('.top.old span');
-  const oldBottom = container.querySelector('.bottom.old span');
-  const newTop = container.querySelector('.top.new span');
-  const newBottom = container.querySelector('.bottom.new span');
+  const topOld = container.querySelector('.top.old span');
+  const bottomOld = container.querySelector('.bottom.old span');
+  const topNew = container.querySelector('.top.new span');
+  const bottomNew = container.querySelector('.bottom.new span');
 
-  if (oldTop.textContent === value) return;
+  if (topOld.textContent === value) return;
 
-  newTop.textContent = value;
-  newBottom.textContent = value;
+  topNew.textContent = value;
+  bottomNew.textContent = value;
 
-  container.classList.remove('animate');
-  void container.offsetWidth;
-  container.classList.add('animate');
+  container.classList.remove('animating');
+  void container.offsetWidth; // force reflow
+  container.classList.add('animating');
 
   setTimeout(() => {
-    oldTop.textContent = value;
-    oldBottom.textContent = value;
-    container.classList.remove('animate');
-  }, 750);
+    topOld.textContent = value;
+    bottomOld.textContent = value;
+
+    container.classList.remove('animating');
+
+    // reset transforms explicitly
+    container.querySelector('.top.old').style.transform = 'rotateX(0deg)';
+    container.querySelector('.bottom.old').style.transform = 'rotateX(0deg)';
+    container.querySelector('.top.new').style.transform = 'rotateX(90deg)';
+    container.querySelector('.bottom.new').style.transform = 'rotateX(-90deg)';
+  }, 700);
 }
 
 function getTime() {
