@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Aesthetic Flip Clock</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<title>True Flip Clock</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 :root {
@@ -13,18 +13,18 @@
   --card-top: #141414;
   --card-bottom: #080808;
 
-  --digit-color: #f2f2f2;
-  --accent-color: rgba(255,255,255,0.28);
+  --digit: #f2f2f2;
+  --accent: rgba(255,255,255,0.28);
 
-  --card-radius: 28px;
-  --card-size: 280px;
+  --card-size: 260px;
+  --radius: 28px;
 
-  --digit-size: 10.6rem;
-  --accent-size: 0.95rem;
+  --digit-size: 10rem;
+  --accent-size: 0.9rem;
 
-  --flip-duration: 780ms;
-  --ease-out: cubic-bezier(.22,.61,.36,1);
+  --flip-duration: 700ms;
   --ease-in: cubic-bezier(.55,.06,.68,.19);
+  --ease-out: cubic-bezier(.22,.61,.36,1);
 }
 
 * { box-sizing: border-box; }
@@ -40,7 +40,7 @@ html, body {
 }
 
 .clock-scale {
-  transform: scale(1.25);
+  transform: scale(1.15);
 }
 
 .clock {
@@ -53,15 +53,15 @@ html, body {
   width: var(--card-size);
   height: var(--card-size);
   background: linear-gradient(to bottom, var(--card-top), var(--card-bottom));
-  border-radius: var(--card-radius);
+  border-radius: var(--radius);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.025),
-    0 55px 110px rgba(0,0,0,0.85);
-  overflow: hidden;
+    inset 0 1px 0 rgba(255,255,255,0.02),
+    0 45px 90px rgba(0,0,0,0.85);
   perspective: 1200px;
+  overflow: hidden;
 }
 
-/* hinge seam */
+/* seam */
 .card::after {
   content: "";
   position: absolute;
@@ -73,15 +73,15 @@ html, body {
   z-index: 5;
 }
 
-/* =========================
-   FLIP DIGIT STRUCTURE
-========================= */
+/* =====================
+   FLIP STRUCTURE
+===================== */
 .flip {
   position: absolute;
   inset: 0;
 }
 
-.half {
+.panel {
   position: absolute;
   left: 0;
   width: 100%;
@@ -92,52 +92,52 @@ html, body {
   align-items: center;
   font-size: var(--digit-size);
   font-weight: 700;
-  color: var(--digit-color);
+  color: var(--digit);
   backface-visibility: hidden;
 }
 
-.half.top {
+.panel span {
+  transform: translateY(50%);
+}
+
+.bottom span {
+  transform: translateY(-50%);
+}
+
+.top {
   top: 0;
   transform-origin: bottom;
 }
 
-.half.bottom {
+.bottom {
   bottom: 0;
   transform-origin: top;
 }
 
-.half span {
-  transform: translateY(50%);
-}
-
-.half.bottom span {
-  transform: translateY(-50%);
-}
-
-/* =========================
-   ANIMATION STATES
-========================= */
+/* =====================
+   FLIP ANIMATION
+===================== */
 .flip.animate .top.old {
-  animation: flipTop var(--flip-duration) var(--ease-in) forwards;
+  animation: topFlip var(--flip-duration) var(--ease-in) forwards;
 }
 
 .flip.animate .bottom.new {
-  animation: flipBottom var(--flip-duration) var(--ease-out) forwards;
+  animation: bottomFlip var(--flip-duration) var(--ease-out) forwards;
 }
 
-@keyframes flipTop {
+@keyframes topFlip {
   0%   { transform: rotateX(0deg); }
   100% { transform: rotateX(-90deg); }
 }
 
-@keyframes flipBottom {
+@keyframes bottomFlip {
   0%   { transform: rotateX(90deg); }
   100% { transform: rotateX(0deg); }
 }
 
-/* =========================
+/* =====================
    ACCENTS
-========================= */
+===================== */
 .ampm {
   position: absolute;
   top: 16px;
@@ -145,7 +145,7 @@ html, body {
   font-size: var(--accent-size);
   letter-spacing: 0.12em;
   font-weight: 600;
-  color: var(--accent-color);
+  color: var(--accent);
   z-index: 10;
 }
 
@@ -156,7 +156,7 @@ html, body {
   font-size: var(--accent-size);
   letter-spacing: 0.12em;
   font-weight: 600;
-  color: var(--accent-color);
+  color: var(--accent);
   z-index: 10;
 }
 </style>
@@ -181,16 +181,16 @@ html, body {
 </div>
 
 <script>
-function createFlip(container, value) {
+function buildFlip(container, value) {
   container.innerHTML = `
-    <div class="half top old"><span>${value}</span></div>
-    <div class="half bottom old"><span>${value}</span></div>
-    <div class="half top new"><span>${value}</span></div>
-    <div class="half bottom new"><span>${value}</span></div>
+    <div class="panel top old"><span>${value}</span></div>
+    <div class="panel bottom old"><span>${value}</span></div>
+    <div class="panel top new"><span>${value}</span></div>
+    <div class="panel bottom new"><span>${value}</span></div>
   `;
 }
 
-function updateFlip(container, value) {
+function flipTo(container, value) {
   const oldTop = container.querySelector('.top.old span');
   const oldBottom = container.querySelector('.bottom.old span');
   const newTop = container.querySelector('.top.new span');
@@ -202,14 +202,14 @@ function updateFlip(container, value) {
   newBottom.textContent = value;
 
   container.classList.remove('animate');
-  void container.offsetWidth; // reflow
+  void container.offsetWidth;
   container.classList.add('animate');
 
   setTimeout(() => {
     oldTop.textContent = value;
     oldBottom.textContent = value;
     container.classList.remove('animate');
-  }, 800);
+  }, 750);
 }
 
 function getTime() {
@@ -217,7 +217,7 @@ function getTime() {
   let h = now.getHours();
   const m = now.getMinutes();
   const s = now.getSeconds();
-  const ampm = h >= 12 ? 'PM' : 'AM';
+  const ampm = h >= 12 ? "PM" : "AM";
   h = h % 12 || 12;
   return { h, m, s, ampm };
 }
@@ -234,19 +234,19 @@ function tick() {
   const { h, m, s, ampm } = getTime();
 
   if (lastH === null) {
-    createFlip(hourEl, h);
-    createFlip(minEl, String(m).padStart(2, '0'));
+    buildFlip(hourEl, h);
+    buildFlip(minEl, String(m).padStart(2, '0'));
     lastH = h;
     lastM = m;
     ampmEl.textContent = ampm;
   } else {
     if (h !== lastH) {
-      updateFlip(hourEl, h);
+      flipTo(hourEl, h);
       ampmEl.textContent = ampm;
       lastH = h;
     }
     if (m !== lastM) {
-      updateFlip(minEl, String(m).padStart(2, '0'));
+      flipTo(minEl, String(m).padStart(2, '0'));
       lastM = m;
     }
   }
