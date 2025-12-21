@@ -320,7 +320,26 @@ function smoothSeconds() {
 ========================= */
 tick();
 smoothSeconds();
+
+/* =========================
+   VISIBILITY RESYNC FIX
+========================= */
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    // Hard resync on return to tab
+    lastH = null;
+    lastM = null;
+
+    hourEl.innerHTML = "";
+    minuteEl.innerHTML = "";
+
+    // Force immediate redraw
+    tick();
+  }
+});
+
 </script>
 
 </body>
 </html>
+
