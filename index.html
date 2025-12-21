@@ -7,16 +7,15 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="site.webmanifest">
 <meta charset="UTF-8" />
-<title>Aesthetic OLED Clock</title>
+<title>Clock</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
 <style>
 /* =========================
-   DESIGN TOKENS (OLED)
+   DESIGN TOKENS
 ========================= */
 :root {
-  --bg-outer: #000000;
-  --bg-inner: #000000;
+  --bg: #000;
 
   --card-top: #0b0b0b;
   --card-bottom: #060606;
@@ -26,16 +25,13 @@
 
   --card-radius: 22px;
 
-  /* Responsive size */
-  --card-size: clamp(180px, 38vw, 260px);
+  /* DEFAULT (DESKTOP) */
+  --card-size: 260px;
 
-  /* Digits */
-  --digit-size: clamp(6.5rem, 14vw, 9.4rem);
-  --accent-size: clamp(0.75rem, 2.2vw, 0.9rem);
+  --digit-size: 9.4rem;
+  --accent-size: 0.9rem;
 
-  /* Ultra-fast */
   --anim-duration: 110ms;
-  --ease: linear;
 }
 
 /* =========================
@@ -46,7 +42,7 @@
 html, body {
   margin: 0;
   height: 100%;
-  background: var(--bg-inner);
+  background: var(--bg);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -59,7 +55,7 @@ html, body {
 ========================= */
 .clock {
   display: flex;
-  gap: clamp(6px, 2vw, 8px);
+  gap: 8px;
   padding: env(safe-area-inset-top)
            env(safe-area-inset-right)
            env(safe-area-inset-bottom)
@@ -81,7 +77,7 @@ html, body {
   overflow: hidden;
 }
 
-/* seam (very subtle) */
+/* seam */
 .card::after {
   content: "";
   position: absolute;
@@ -93,7 +89,7 @@ html, body {
 }
 
 /* =========================
-   DIGITS (INSTANT SYSTEM STYLE)
+   DIGITS (INSTANT)
 ========================= */
 .digit-wrapper {
   position: relative;
@@ -112,24 +108,19 @@ html, body {
   color: var(--digit-color);
   line-height: 1;
   opacity: 1;
-  transition: opacity var(--anim-duration) var(--ease);
+  transition: opacity var(--anim-duration) linear;
 }
 
-.digit.exit {
-  opacity: 0;
-}
-
-.digit.enter {
-  opacity: 0;
-}
+.digit.exit { opacity: 0; }
+.digit.enter { opacity: 0; }
 
 /* =========================
    ACCENTS
 ========================= */
 .ampm {
   position: absolute;
-  top: clamp(10px, 3vw, 16px);
-  left: clamp(12px, 3vw, 20px);
+  top: 16px;
+  left: 20px;
   font-size: var(--accent-size);
   letter-spacing: 0.12em;
   font-weight: 600;
@@ -138,14 +129,29 @@ html, body {
 
 .seconds {
   position: absolute;
-  bottom: clamp(10px, 3vw, 16px);
-  right: clamp(12px, 3vw, 20px);
+  bottom: 16px;
+  right: 20px;
   font-size: var(--accent-size);
   letter-spacing: 0.12em;
   font-weight: 600;
   color: var(--accent-color);
   opacity: 0.24;
   will-change: opacity;
+}
+
+/* =========================
+   MOBILE OVERRIDES
+========================= */
+@media (max-width: 767px) {
+  :root {
+    --card-size: clamp(170px, 42vw, 220px);
+    --digit-size: clamp(6.2rem, 15vw, 8rem);
+    --accent-size: clamp(0.7rem, 2.6vw, 0.85rem);
+  }
+
+  .clock {
+    gap: 6px;
+  }
 }
 
 /* =========================
@@ -194,7 +200,7 @@ function getTimeParts() {
 }
 
 /* =========================
-   DIGIT UPDATE (INSTANT)
+   DIGIT UPDATE
 ========================= */
 function updateDigit(container, value) {
   const current = container.querySelector(".digit");
@@ -210,9 +216,7 @@ function updateDigit(container, value) {
     if (current) current.classList.add("exit");
   });
 
-  if (current) {
-    setTimeout(() => current.remove(), 140);
-  }
+  if (current) setTimeout(() => current.remove(), 140);
 }
 
 /* =========================
@@ -254,7 +258,7 @@ function tick() {
 }
 
 /* =========================
-   SMOOTH SECONDS (OLED CALM)
+   SMOOTH SECONDS
 ========================= */
 function smoothSeconds() {
   const now = new Date();
