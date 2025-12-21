@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Aesthetic Clock</title>
+<title>Clock</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
 <style>
@@ -13,7 +13,6 @@
   --bg-outer: #090909;
   --bg-inner: #000000;
 
-  /* DARKER & SUBTLER */
   --card-top: #101010;
   --card-bottom: #070707;
 
@@ -21,16 +20,13 @@
   --accent-color: rgba(255,255,255,0.26);
 
   --card-radius: 26px;
-
-  /* REDUCED SIZE */
   --card-size: 260px;
 
-  /* DIGITS */
   --digit-size: 9.6rem;
   --accent-size: 0.9rem;
 
-  --ease: cubic-bezier(.22,.61,.36,1);
-  --anim-duration: 460ms;
+  --anim-duration: 170ms;
+  --ease: cubic-bezier(.2,.6,.4,1);
 }
 
 /* =========================
@@ -52,7 +48,6 @@ html, body {
    CLOCK SCALE
 ========================= */
 .clock-scale {
-  /* slightly reduced for balance */
   transform: scale(1.15);
   transform-origin: center;
 }
@@ -62,7 +57,7 @@ html, body {
 ========================= */
 .clock {
   display: flex;
-  gap: 8px; /* tighter spacing */
+  gap: 8px;
 }
 
 .card {
@@ -80,7 +75,7 @@ html, body {
   overflow: hidden;
 }
 
-/* subtler seam */
+/* subtle seam */
 .card::after {
   content: "";
   position: absolute;
@@ -92,7 +87,7 @@ html, body {
 }
 
 /* =========================
-   DIGITS
+   DIGITS (SYSTEM STYLE)
 ========================= */
 .digit-wrapper {
   position: relative;
@@ -107,23 +102,26 @@ html, body {
   justify-content: center;
   align-items: center;
   font-size: var(--digit-size);
-  font-weight: 750; /* slightly bolder */
+  font-weight: 750;
   color: var(--digit-color);
   line-height: 1;
-  transform: translateY(-1px);
+  opacity: 1;
+  transform: scale(1);
   transition:
-    transform var(--anim-duration) var(--ease),
-    opacity var(--anim-duration) var(--ease);
+    opacity var(--anim-duration) var(--ease),
+    transform var(--anim-duration) var(--ease);
 }
 
-.digit.enter {
-  transform: translateY(100%);
-  opacity: 0;
-}
-
+/* old digit */
 .digit.exit {
-  transform: translateY(-100%);
   opacity: 0;
+  transform: scale(0.96);
+}
+
+/* new digit */
+.digit.enter {
+  opacity: 0;
+  transform: scale(1.04);
 }
 
 /* =========================
@@ -147,9 +145,17 @@ html, body {
   letter-spacing: 0.12em;
   font-weight: 600;
   color: var(--accent-color);
-  transition:
-    opacity 240ms var(--ease),
-    transform 240ms var(--ease);
+  opacity: 0.26;
+  will-change: transform, opacity;
+}
+
+/* =========================
+   REDUCED MOTION
+========================= */
+@media (prefers-reduced-motion: reduce) {
+  .digit {
+    transition: none;
+  }
 }
 </style>
 </head>
@@ -175,6 +181,9 @@ html, body {
 </div>
 
 <script>
+/* =========================
+   TIME HELPERS
+========================= */
 function getTimeParts() {
   const now = new Date();
   let h = now.getHours();
@@ -187,6 +196,9 @@ function getTimeParts() {
   return { h, m, s, ampm };
 }
 
+/* =========================
+   DIGIT UPDATE (FAST SYSTEM STYLE)
+========================= */
 function updateDigit(container, value) {
   const current = container.querySelector(".digit");
   if (current && current.textContent === value) return;
@@ -201,9 +213,14 @@ function updateDigit(container, value) {
     if (current) current.classList.add("exit");
   });
 
-  if (current) setTimeout(() => current.remove(), 600);
+  if (current) {
+    setTimeout(() => current.remove(), 220);
+  }
 }
 
+/* =========================
+   ELEMENTS
+========================= */
 const hourEl = document.getElementById("hour");
 const minuteEl = document.getElementById("minute");
 const ampmEl = document.getElementById("ampm");
@@ -212,8 +229,11 @@ const secEl = document.getElementById("seconds");
 let lastH = null;
 let lastM = null;
 
+/* =========================
+   MAIN TICK (HOURS + MINUTES)
+========================= */
 function tick() {
-  const { h, m, s, ampm } = getTimeParts();
+  const { h, m, ampm } = getTimeParts();
 
   if (lastH === null) {
     const hd = document.createElement("div");
@@ -241,18 +261,30 @@ function tick() {
     }
   }
 
-  secEl.textContent = String(s).padStart(2, "0");
-  secEl.style.opacity = "0.55";
-  secEl.style.transform = "translateY(-1px)";
-  setTimeout(() => {
-    secEl.style.opacity = "0.26";
-    secEl.style.transform = "translateY(0)";
-  }, 120);
-
-  setTimeout(tick, 1000);
+  setTimeout(tick, 1000 - new Date().getMilliseconds());
 }
 
+/* =========================
+   SMOOTH SECONDS (RAF)
+========================= */
+function smoothSeconds() {
+  const now = new Date();
+  const s = now.getSeconds();
+  const ms = now.getMilliseconds();
+  const p = ms / 1000;
+
+  secEl.textContent = String(s).padStart(2, "0");
+  secEl.style.opacity = 0.26 + p * 0.18;
+  secEl.style.transform = `translateY(${-p}px)`;
+
+  requestAnimationFrame(smoothSeconds);
+}
+
+/* =========================
+   START
+========================= */
 tick();
+smoothSeconds();
 </script>
 
 </body>
