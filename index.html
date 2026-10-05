@@ -212,6 +212,142 @@ html, body {
   }
 }
 
+/* =========================
+   MODE CONTROLS
+========================= */
+.mode-selector,
+.mode-tools {
+  position: fixed;
+  left: 50%;
+  z-index: 5;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.mode-selector {
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.mode-selector button,
+.mode-actions button {
+  min-height: 44px;
+  padding: 10px 9px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255,255,255,0.52);
+  font: 600 var(--accent-size)/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mode-selector button[aria-pressed="true"] {
+  color: rgba(255,255,255,0.82);
+}
+
+.mode-selector button:focus-visible,
+.mode-actions button:focus-visible {
+  outline: 1px solid rgba(255,255,255,0.5);
+  outline-offset: 2px;
+}
+
+.mode-tools {
+  bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+  width: min(100% - 32px, 420px);
+  color: rgba(255,255,255,0.62);
+}
+
+.mode-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 44px;
+}
+
+.mode-actions button {
+  color: rgba(255,255,255,0.7);
+}
+
+.lap-list {
+  display: grid;
+  gap: 3px;
+  max-height: min(22vh, 156px);
+  margin: 0 auto 5px;
+  padding: 0 8px;
+  overflow: auto;
+  list-style: none;
+  font-size: calc(var(--accent-size) * 0.82);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.42);
+  font-variant-numeric: tabular-nums;
+}
+
+.lap-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.timer-hint {
+  min-height: 1.2em;
+  margin: 0 0 2px;
+  font-size: calc(var(--accent-size) * 0.82);
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.56);
+}
+
+.clock-scale {
+  position: relative;
+}
+
+body.instrument-mode {
+  overflow-x: hidden;
+}
+
+.duration-input {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--card-radius);
+  background: transparent;
+  color: var(--digit-color);
+  caret-color: var(--digit-color);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: clamp(2rem, 10vw, 6rem);
+  font-weight: 750;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.duration-input[hidden],
+.mode-tools[hidden] {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .mode-selector button,
+  .mode-actions button {
+    padding-right: 7px;
+    padding-left: 7px;
+  }
+
+  .mode-actions {
+    gap: 7px;
+  }
+}
+
 </style>
 </head>
 
@@ -233,7 +369,20 @@ html, body {
     </div>
 
   </div>
+  <input class="duration-input" id="durationInput" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Timer duration" aria-describedby="timerHint" hidden>
 </div>
+
+<section class="mode-tools" id="modeTools" aria-label="Mode controls" hidden>
+  <ol class="lap-list" id="lapList" aria-label="Stopwatch laps"></ol>
+  <p class="timer-hint" id="timerHint" aria-live="polite"></p>
+  <div class="mode-actions" id="modeActions"></div>
+</section>
+
+<nav class="mode-selector" id="modeSelector" aria-label="Time mode">
+  <button type="button" data-mode="clock" aria-pressed="true">CLOCK</button>
+  <button type="button" data-mode="stopwatch" aria-pressed="false">STOPWATCH</button>
+  <button type="button" data-mode="timer" aria-pressed="false">TIMER</button>
+</nav>
 
 <script>
 /* =========================
@@ -255,7 +404,8 @@ function getTimeParts() {
    DIGIT UPDATE (FAST SYSTEM STYLE)
 ========================= */
 function updateDigit(container, value) {
-  const current = container.querySelector(".digit");
+  value = String(value);
+  const current = container.querySelector(".digit:not(.exit)");
   if (current && current.textContent === value) return;
 
   const next = document.createElement("div");
@@ -263,10 +413,16 @@ function updateDigit(container, value) {
   next.textContent = value;
   container.appendChild(next);
 
-  requestAnimationFrame(() => {
+  let transitionStarted = false;
+  const startTransition = () => {
+    if (transitionStarted) return;
+    transitionStarted = true;
     next.classList.remove("enter");
     if (current) current.classList.add("exit");
-  });
+  };
+
+  requestAnimationFrame(startTransition);
+  setTimeout(startTransition, 50);
 
   if (current) {
     setTimeout(() => current.remove(), 220);
@@ -280,6 +436,32 @@ const hourEl = document.getElementById("hour");
 const minuteEl = document.getElementById("minute");
 const ampmEl = document.getElementById("ampm");
 const secEl = document.getElementById("seconds");
+const modeSelector = document.getElementById("modeSelector");
+const modeTools = document.getElementById("modeTools");
+const modeActions = document.getElementById("modeActions");
+const lapList = document.getElementById("lapList");
+const timerHint = document.getElementById("timerHint");
+const durationInput = document.getElementById("durationInput");
+
+const MAX_DURATION = (99 * 60 * 60 + 59 * 60 + 59) * 1000;
+const appState = {
+  mode: "clock",
+  stopwatch: { status: "idle", startTime: null, elapsed: 0, laps: [] },
+  timer: { status: "idle", duration: 5 * 60 * 1000, startTime: null, remaining: 5 * 60 * 1000 },
+  timerEditing: false
+};
+
+try {
+  const savedDuration = Number(localStorage.getItem("clock.timer.duration"));
+  if (Number.isFinite(savedDuration) && savedDuration > 0 && savedDuration <= MAX_DURATION) {
+    appState.timer.duration = savedDuration;
+    appState.timer.remaining = savedDuration;
+  }
+} catch {}
+
+let clockTimeoutId = null;
+let clockFrameId = null;
+let modeFrameId = null;
 
 let lastH = null;
 let lastM = null;
@@ -288,18 +470,25 @@ let lastM = null;
    MAIN TICK (HOURS + MINUTES)
 ========================= */
 function tick() {
+  if (appState.mode !== "clock") return;
   const { h, m, ampm } = getTimeParts();
 
   if (lastH === null) {
-    const hd = document.createElement("div");
-    hd.className = "digit";
-    hd.textContent = h;
-    hourEl.appendChild(hd);
+    if (hourEl.querySelector(".digit")) updateDigit(hourEl, h);
+    else {
+      const hd = document.createElement("div");
+      hd.className = "digit";
+      hd.textContent = h;
+      hourEl.appendChild(hd);
+    }
 
-    const md = document.createElement("div");
-    md.className = "digit";
-    md.textContent = String(m).padStart(2, "0");
-    minuteEl.appendChild(md);
+    if (minuteEl.querySelector(".digit")) updateDigit(minuteEl, String(m).padStart(2, "0"));
+    else {
+      const md = document.createElement("div");
+      md.className = "digit";
+      md.textContent = String(m).padStart(2, "0");
+      minuteEl.appendChild(md);
+    }
 
     ampmEl.textContent = ampm;
     lastH = h;
@@ -316,13 +505,14 @@ function tick() {
     }
   }
 
-  setTimeout(tick, 1000 - new Date().getMilliseconds());
+  clockTimeoutId = setTimeout(tick, 1000 - new Date().getMilliseconds());
 }
 
 /* =========================
    SMOOTH SECONDS (RAF)
 ========================= */
 function smoothSeconds() {
+  if (appState.mode !== "clock") return;
   const now = new Date();
   const s = now.getSeconds();
   const ms = now.getMilliseconds();
@@ -332,12 +522,371 @@ function smoothSeconds() {
   secEl.style.opacity = 0.26 + p * 0.18;
   secEl.style.transform = `translateY(${-p}px)`;
 
-  requestAnimationFrame(smoothSeconds);
+  clockFrameId = requestAnimationFrame(smoothSeconds);
 }
 
 /* =========================
-   START
+   CLOCK MODE LIFECYCLE
 ========================= */
+function startClock() {
+  lastH = null;
+  lastM = null;
+  tick();
+  smoothSeconds();
+}
+
+function stopClock() {
+  clearTimeout(clockTimeoutId);
+  cancelAnimationFrame(clockFrameId);
+  clockTimeoutId = null;
+  clockFrameId = null;
+}
+
+/* =========================
+   STOPWATCH AND TIMER HELPERS
+========================= */
+function getStopwatchElapsed(now = performance.now()) {
+  const state = appState.stopwatch;
+  return state.status === "running" ? state.elapsed + now - state.startTime : state.elapsed;
+}
+
+function getTimerRemaining(now = performance.now()) {
+  const state = appState.timer;
+  if (state.status !== "running") return state.remaining;
+  const remaining = Math.max(0, state.remaining - (now - state.startTime));
+  if (remaining === 0) {
+    state.remaining = 0;
+    state.startTime = null;
+    state.status = "complete";
+    if (appState.mode === "timer") renderControls();
+  }
+  return remaining;
+}
+
+function formatStopwatch(ms) {
+  const totalCentiseconds = Math.floor(ms / 10);
+  const totalSeconds = Math.floor(totalCentiseconds / 100);
+  const fraction = String(totalCentiseconds % 100).padStart(2, "0");
+  if (totalSeconds >= 3600) {
+    return {
+      first: String(Math.floor(totalSeconds / 3600)).padStart(2, "0"),
+      second: String(Math.floor(totalSeconds / 60) % 60).padStart(2, "0"),
+      peripheral: `${String(totalSeconds % 60).padStart(2, "0")}.${fraction}`
+    };
+  }
+  return {
+    first: String(Math.floor(totalSeconds / 60)).padStart(2, "0"),
+    second: String(totalSeconds % 60).padStart(2, "0"),
+    peripheral: fraction
+  };
+}
+
+function formatTimer(ms) {
+  const totalSeconds = Math.ceil(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor(totalSeconds / 60) % 60;
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return {
+      first: String(hours).padStart(2, "0"),
+      second: String(minutes).padStart(2, "0"),
+      peripheral: `${String(seconds).padStart(2, "0")}.${String(Math.floor(ms % 1000 / 10)).padStart(2, "0")}`
+    };
+  }
+  return {
+    first: String(Math.floor(totalSeconds / 60)).padStart(2, "0"),
+    second: String(totalSeconds % 60).padStart(2, "0"),
+    peripheral: String(Math.floor(ms % 1000 / 10)).padStart(2, "0")
+  };
+}
+
+function formatDurationInput(ms) {
+  const seconds = Math.floor(ms / 1000);
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor(seconds / 60) % 60;
+  const rest = seconds % 60;
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`
+    : `${Math.floor(seconds / 60)}:${String(rest).padStart(2, "0")}`;
+}
+
+function parseDuration(input) {
+  const value = input.trim();
+  if (!value || value.startsWith("-") || !/^\d+(?::\d{1,2}){0,2}$/.test(value)) return null;
+  const parts = value.split(":").map(Number);
+  if (parts.some(part => !Number.isSafeInteger(part) || part < 0)) return null;
+  let seconds;
+  if (parts.length === 1) seconds = parts[0] * 60;
+  else if (parts.length === 2) {
+    if (parts[1] >= 60) return null;
+    seconds = parts[0] * 60 + parts[1];
+  } else {
+    if (parts[1] >= 60 || parts[2] >= 60) return null;
+    seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+  const milliseconds = seconds * 1000;
+  return milliseconds > 0 && milliseconds <= MAX_DURATION ? milliseconds : null;
+}
+
+function updateInstrument(first, second, label, peripheral) {
+  updateDigit(hourEl, first);
+  updateDigit(minuteEl, second);
+  if (ampmEl.textContent !== label) ampmEl.textContent = label;
+  if (secEl.textContent !== peripheral) secEl.textContent = peripheral;
+  if (secEl.style.opacity !== "0.36") secEl.style.opacity = "0.36";
+  if (secEl.style.transform !== "none") secEl.style.transform = "none";
+}
+
+function scheduleModeRender() {
+  const running = appState.mode === "stopwatch"
+    ? appState.stopwatch.status === "running"
+    : appState.mode === "timer" && appState.timer.status === "running";
+  if (!running || modeFrameId !== null) return;
+  modeFrameId = requestAnimationFrame(() => {
+    modeFrameId = null;
+    renderActiveMode();
+  });
+}
+
+function renderActiveMode() {
+  if (appState.mode === "stopwatch") {
+    const time = formatStopwatch(getStopwatchElapsed());
+    updateInstrument(time.first, time.second, "STOPWATCH", time.peripheral);
+    scheduleModeRender();
+  } else if (appState.mode === "timer") {
+    const time = formatTimer(getTimerRemaining());
+    updateInstrument(time.first, time.second, appState.timer.status === "complete" ? "DONE" : "TIMER", time.peripheral);
+    scheduleModeRender();
+  }
+}
+
+function renderLaps() {
+  lapList.replaceChildren();
+  appState.stopwatch.laps.forEach((lap, index) => {
+    const row = document.createElement("li");
+    const number = document.createElement("span");
+    const value = document.createElement("span");
+    number.textContent = String(index + 1).padStart(2, "0");
+    value.textContent = formatLapTime(lap.elapsed);
+    row.append(number, value);
+    lapList.appendChild(row);
+  });
+}
+
+function formatLapTime(ms) {
+  const centiseconds = Math.floor(ms / 10);
+  const seconds = Math.floor(centiseconds / 100);
+  const prefix = seconds >= 3600
+    ? `${Math.floor(seconds / 3600)}:${String(Math.floor(seconds / 60) % 60).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`
+    : `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+  return `${prefix}.${String(centiseconds % 100).padStart(2, "0")}`;
+}
+
+function renderControls() {
+  modeTools.hidden = appState.mode === "clock";
+  lapList.hidden = appState.mode !== "stopwatch" || appState.stopwatch.laps.length === 0;
+  timerHint.textContent = appState.mode === "timer" && appState.timerEditing ? "DURATION  M:SS OR H:MM:SS" : "";
+  if (appState.mode === "stopwatch") renderLaps();
+
+  let actions = [];
+  if (appState.mode === "stopwatch") {
+    const status = appState.stopwatch.status;
+    actions = status === "running" ? [["pause", "PAUSE"], ["lap", "LAP"]]
+      : status === "paused" ? [["resume", "RESUME"], ["reset", "RESET"]]
+      : [["start", "START"], ["reset", "RESET"]];
+  } else if (appState.mode === "timer") {
+    const status = appState.timer.status;
+    if (appState.timerEditing) actions = [["save", "SAVE"], ["cancel-edit", "CANCEL"]];
+    else if (status === "running") actions = [["pause", "PAUSE"], ["reset", "RESET"]];
+    else if (status === "paused") actions = [["resume", "RESUME"], ["reset", "RESET"], ["edit", "EDIT"]];
+    else if (status === "complete") actions = [["restart", "RESTART"], ["edit", "EDIT"]];
+    else actions = [["start", "START"], ["reset", "RESET"], ["edit", "EDIT"]];
+  }
+  modeActions.replaceChildren(...actions.map(([action, label]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.action = action;
+    button.textContent = label;
+    return button;
+  }));
+}
+
+function stopModeRendering() {
+  cancelAnimationFrame(modeFrameId);
+  modeFrameId = null;
+}
+
+function setMode(mode) {
+  if (!["clock", "stopwatch", "timer"].includes(mode) || mode === appState.mode) return;
+  stopModeRendering();
+  if (appState.mode === "clock") stopClock();
+  appState.timerEditing = false;
+  durationInput.hidden = true;
+  appState.mode = mode;
+  document.body.classList.toggle("instrument-mode", mode !== "clock");
+  modeSelector.querySelectorAll("button").forEach(button => {
+    button.setAttribute("aria-pressed", String(button.dataset.mode === mode));
+  });
+  renderControls();
+  if (mode === "clock") {
+    startClock();
+  } else {
+    renderActiveMode();
+  }
+}
+
+function resetStopwatch() {
+  Object.assign(appState.stopwatch, { status: "idle", startTime: null, elapsed: 0, laps: [] });
+}
+
+function startStopwatch() {
+  const state = appState.stopwatch;
+  if (state.status === "running") return;
+  state.startTime = performance.now();
+  state.status = "running";
+}
+
+function pauseStopwatch() {
+  const state = appState.stopwatch;
+  if (state.status !== "running") return;
+  state.elapsed = getStopwatchElapsed();
+  state.startTime = null;
+  state.status = "paused";
+}
+
+function recordLap() {
+  const state = appState.stopwatch;
+  if (state.status !== "running") return;
+  const total = getStopwatchElapsed();
+  const previous = state.laps.at(-1)?.total || 0;
+  state.laps.push({ total, elapsed: total - previous });
+}
+
+function persistTimerDuration() {
+  try { localStorage.setItem("clock.timer.duration", String(appState.timer.duration)); } catch {}
+}
+
+function beginTimer() {
+  const state = appState.timer;
+  if (state.status === "running") return;
+  if (state.status === "idle" || state.status === "complete") state.remaining = state.duration;
+  if (state.remaining <= 0) return;
+  state.startTime = performance.now();
+  state.status = "running";
+}
+
+function pauseTimer() {
+  const state = appState.timer;
+  if (state.status !== "running") return;
+  state.remaining = getTimerRemaining();
+  if (state.status === "complete") return;
+  state.startTime = null;
+  state.status = "paused";
+}
+
+function resetTimer() {
+  const state = appState.timer;
+  state.status = "idle";
+  state.startTime = null;
+  state.remaining = state.duration;
+  appState.timerEditing = false;
+  durationInput.hidden = true;
+}
+
+function enterTimerEdit() {
+  if (appState.timer.status === "running") return;
+  appState.timerEditing = true;
+  durationInput.value = formatDurationInput(appState.timer.duration);
+  durationInput.hidden = false;
+  renderControls();
+  durationInput.focus();
+  durationInput.select();
+}
+
+function saveTimerEdit() {
+  const duration = parseDuration(durationInput.value);
+  if (duration === null) {
+    timerHint.textContent = "ENTER A VALID DURATION ABOVE ZERO";
+    durationInput.setAttribute("aria-invalid", "true");
+    return false;
+  }
+  appState.timer.duration = duration;
+  appState.timer.remaining = duration;
+  appState.timer.startTime = null;
+  appState.timer.status = "idle";
+  appState.timerEditing = false;
+  durationInput.hidden = true;
+  durationInput.removeAttribute("aria-invalid");
+  persistTimerDuration();
+  renderControls();
+  renderActiveMode();
+  return true;
+}
+
+function performAction(action) {
+  if (appState.mode === "stopwatch") {
+    if (action === "start" || action === "resume") startStopwatch();
+    if (action === "pause") pauseStopwatch();
+    if (action === "reset") resetStopwatch();
+    if (action === "lap") recordLap();
+  } else if (appState.mode === "timer") {
+    if (action === "start" || action === "resume" || action === "restart") beginTimer();
+    if (action === "pause") pauseTimer();
+    if (action === "reset") resetTimer();
+    if (action === "edit") enterTimerEdit();
+    if (action === "save") { saveTimerEdit(); return; }
+    if (action === "cancel-edit") {
+      appState.timerEditing = false;
+      durationInput.hidden = true;
+      durationInput.removeAttribute("aria-invalid");
+    }
+  }
+  renderControls();
+  renderActiveMode();
+}
+
+modeSelector.addEventListener("click", event => {
+  const button = event.target.closest("button[data-mode]");
+  if (button) setMode(button.dataset.mode);
+});
+
+modeTools.addEventListener("click", event => {
+  const button = event.target.closest("button[data-action]");
+  if (button) performAction(button.dataset.action);
+});
+
+durationInput.addEventListener("input", () => {
+  durationInput.removeAttribute("aria-invalid");
+  timerHint.textContent = "DURATION  M:SS OR H:MM:SS";
+});
+
+durationInput.addEventListener("keydown", event => {
+  if (event.key === "Enter") { event.preventDefault(); saveTimerEdit(); }
+  if (event.key === "Escape") {
+    appState.timerEditing = false;
+    durationInput.hidden = true;
+    durationInput.removeAttribute("aria-invalid");
+    renderControls();
+  }
+});
+
+document.addEventListener("keydown", event => {
+  const target = event.target;
+  if (target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(target.tagName))) return;
+  if (event.altKey || event.ctrlKey || event.metaKey) return;
+  const key = event.key.toLowerCase();
+  if (key === "c") setMode("clock");
+  else if (key === "s") setMode("stopwatch");
+  else if (key === "t") setMode("timer");
+  else if (event.code === "Space") {
+    event.preventDefault();
+    const status = appState.mode === "stopwatch" ? appState.stopwatch.status : appState.timer.status;
+    performAction(status === "running" ? "pause" : status === "paused" ? "resume" : "start");
+  } else if (key === "r") performAction("reset");
+  else if (key === "l" && appState.mode === "stopwatch") performAction("lap");
+});
+
+renderControls();
 tick();
 smoothSeconds();
 
@@ -346,15 +895,17 @@ smoothSeconds();
 ========================= */
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
-    // Hard resync on return to tab
-    lastH = null;
-    lastM = null;
-
-    hourEl.innerHTML = "";
-    minuteEl.innerHTML = "";
-
-    // Force immediate redraw
-    tick();
+    if (appState.mode === "clock") {
+      clearTimeout(clockTimeoutId);
+      lastH = null;
+      lastM = null;
+      hourEl.innerHTML = "";
+      minuteEl.innerHTML = "";
+      tick();
+    } else {
+      stopModeRendering();
+      renderActiveMode();
+    }
   }
 });
 
