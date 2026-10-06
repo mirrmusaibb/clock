@@ -244,10 +244,24 @@ html, body {
   letter-spacing: 0.12em;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: color 130ms var(--ease), transform 80ms var(--ease);
 }
 
 .mode-selector button[aria-pressed="true"] {
   color: rgba(255,255,255,0.82);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mode-selector button:hover,
+  .mode-actions button:hover {
+    color: rgba(255,255,255,0.78);
+  }
+}
+
+.mode-selector button:active,
+.mode-actions button:active {
+  transform: scale(0.985);
+  transition-duration: 70ms;
 }
 
 .mode-selector button:focus-visible,
@@ -313,27 +327,46 @@ body.instrument-mode {
 
 .duration-input {
   position: absolute;
-  inset: 0;
+  top: 50%;
+  left: 50%;
   z-index: 3;
-  width: 100%;
-  height: 100%;
-  padding: 0 12px;
+  width: min(78%, 360px);
+  height: 58%;
+  padding: 0 8px;
   border: 0;
   border-radius: var(--card-radius);
   background: transparent;
   color: var(--digit-color);
   caret-color: var(--digit-color);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: clamp(2rem, 10vw, 6rem);
+  font-size: clamp(2rem, 7vw, 5rem);
   font-weight: 750;
   line-height: 1;
   text-align: center;
   font-variant-numeric: tabular-nums;
+  transform: translate(-50%, -50%);
+}
+
+body.timer-editing .digit-wrapper,
+body.timer-editing .seconds {
+  visibility: hidden;
 }
 
 .duration-input[hidden],
 .mode-tools[hidden] {
   display: none;
+}
+
+.duration-input:focus-visible {
+  outline: 1px solid rgba(255,255,255,0.22);
+  outline-offset: -10px;
+}
+
+.duration-input[aria-invalid="true"] {
+  text-decoration: underline;
+  text-decoration-color: rgba(255,255,255,0.24);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
 }
 
 @media (max-width: 480px) {
@@ -345,6 +378,29 @@ body.instrument-mode {
 
   .mode-actions {
     gap: 7px;
+  }
+
+  .duration-input {
+    font-size: clamp(1.75rem, 10vw, 2.7rem);
+  }
+}
+
+@media (max-width: 380px) {
+  body.instrument-mode .clock-scale {
+    transform: scale(0.91);
+  }
+}
+
+@media (max-width: 340px) {
+  body.instrument-mode .clock-scale {
+    transform: scale(0.78);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mode-selector button,
+  .mode-actions button {
+    transition: none;
   }
 }
 
@@ -442,12 +498,18 @@ const modeActions = document.getElementById("modeActions");
 const lapList = document.getElementById("lapList");
 const timerHint = document.getElementById("timerHint");
 const durationInput = document.getElementById("durationInput");
+const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+let reduceMotion = motionPreference.matches;
+let instrumentDigits = [null, null];
+let instrumentValues = [null, null];
+let instrumentDigitAnimations = [null, null];
+let modeToolsAnimation = null;
 
 const MAX_DURATION = (99 * 60 * 60 + 59 * 60 + 59) * 1000;
 const appState = {
   mode: "clock",
   stopwatch: { status: "idle", startTime: null, elapsed: 0, laps: [] },
-  timer: { status: "idle", duration: 5 * 60 * 1000, startTime: null, remaining: 5 * 60 * 1000 },
+  timer: { status: "idle", duration: 5 * 60 * 1000, deadline: null, remaining: 5 * 60 * 1000 },
   timerEditing: false
 };
 
@@ -553,10 +615,10 @@ function getStopwatchElapsed(now = performance.now()) {
 function getTimerRemaining(now = performance.now()) {
   const state = appState.timer;
   if (state.status !== "running") return state.remaining;
-  const remaining = Math.max(0, state.remaining - (now - state.startTime));
+  const remaining = Math.max(0, state.deadline - now);
   if (remaining === 0) {
     state.remaining = 0;
-    state.startTime = null;
+    state.deadline = null;
     state.status = "complete";
     if (appState.mode === "timer") renderControls();
   }
@@ -629,13 +691,59 @@ function parseDuration(input) {
 }
 
 function updateInstrument(first, second, label, peripheral) {
-  updateDigit(hourEl, first);
-  updateDigit(minuteEl, second);
+  updateInstrumentDigit(0, first);
+  updateInstrumentDigit(1, second);
   if (ampmEl.textContent !== label) ampmEl.textContent = label;
   if (secEl.textContent !== peripheral) secEl.textContent = peripheral;
   if (secEl.style.opacity !== "0.36") secEl.style.opacity = "0.36";
   if (secEl.style.transform !== "none") secEl.style.transform = "none";
 }
+
+function updateInstrumentDigit(index, value) {
+  value = String(value);
+  const container = index === 0 ? hourEl : minuteEl;
+  let digit = instrumentDigits[index];
+  if (!digit || !digit.isConnected || digit.classList.contains("exit")) {
+    digit = container.querySelector(".digit:not(.exit)");
+    if (!digit) {
+      digit = document.createElement("div");
+      digit.className = "digit";
+      container.appendChild(digit);
+    }
+    digit.classList.remove("enter", "exit");
+    instrumentDigits[index] = digit;
+    instrumentValues[index] = digit.textContent;
+  }
+  if (instrumentValues[index] === value) return;
+
+  instrumentValues[index] = value;
+  digit.textContent = value;
+  instrumentDigitAnimations[index]?.cancel();
+  instrumentDigitAnimations[index] = null;
+  if (!reduceMotion && typeof digit.animate === "function") {
+    instrumentDigitAnimations[index] = digit.animate(
+      [
+        { opacity: 0.84, transform: "scale(0.99)" },
+        { opacity: 1, transform: "scale(1)" }
+      ],
+      { duration: 120, easing: "cubic-bezier(.2,.6,.4,1)" }
+    );
+  }
+}
+
+function cancelInstrumentAnimations() {
+  instrumentDigitAnimations.forEach(animation => animation?.cancel());
+  instrumentDigitAnimations = [null, null];
+}
+
+motionPreference.addEventListener("change", event => {
+  reduceMotion = event.matches;
+  if (reduceMotion) {
+    cancelInstrumentAnimations();
+    modeToolsAnimation?.cancel();
+    modeToolsAnimation = null;
+  }
+});
 
 function scheduleModeRender() {
   const running = appState.mode === "stopwatch"
@@ -649,20 +757,30 @@ function scheduleModeRender() {
 }
 
 function renderActiveMode() {
+  let isRunning = false;
   if (appState.mode === "stopwatch") {
     const time = formatStopwatch(getStopwatchElapsed());
     updateInstrument(time.first, time.second, "STOPWATCH", time.peripheral);
-    scheduleModeRender();
+    isRunning = appState.stopwatch.status === "running";
   } else if (appState.mode === "timer") {
+    if (appState.timerEditing) {
+      if (ampmEl.textContent !== "TIMER") ampmEl.textContent = "TIMER";
+      stopModeRendering();
+      return;
+    }
     const time = formatTimer(getTimerRemaining());
     updateInstrument(time.first, time.second, appState.timer.status === "complete" ? "DONE" : "TIMER", time.peripheral);
-    scheduleModeRender();
+    isRunning = appState.timer.status === "running";
   }
+  if (isRunning) scheduleModeRender();
+  else stopModeRendering();
 }
 
 function renderLaps() {
-  lapList.replaceChildren();
-  appState.stopwatch.laps.forEach((lap, index) => {
+  const laps = appState.stopwatch.laps;
+  if (lapList.children.length > laps.length) lapList.replaceChildren();
+  for (let index = lapList.children.length; index < laps.length; index++) {
+    const lap = laps[index];
     const row = document.createElement("li");
     const number = document.createElement("span");
     const value = document.createElement("span");
@@ -670,7 +788,13 @@ function renderLaps() {
     value.textContent = formatLapTime(lap.elapsed);
     row.append(number, value);
     lapList.appendChild(row);
-  });
+    if (!reduceMotion && typeof row.animate === "function") {
+      row.animate(
+        [{ opacity: 0.72, transform: "translateY(2px)" }, { opacity: 1, transform: "translateY(0)" }],
+        { duration: 110, easing: "cubic-bezier(.2,.6,.4,1)" }
+      );
+    }
+  }
 }
 
 function formatLapTime(ms) {
@@ -702,26 +826,36 @@ function renderControls() {
     else if (status === "complete") actions = [["restart", "RESTART"], ["edit", "EDIT"]];
     else actions = [["start", "START"], ["reset", "RESET"], ["edit", "EDIT"]];
   }
-  modeActions.replaceChildren(...actions.map(([action, label]) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.dataset.action = action;
-    button.textContent = label;
-    return button;
-  }));
+  const buttons = Array.from(modeActions.children);
+  actions.forEach(([action, label], index) => {
+    let button = buttons[index];
+    if (!button) {
+      button = document.createElement("button");
+      button.type = "button";
+      modeActions.appendChild(button);
+    }
+    button.hidden = false;
+    if (button.dataset.action !== action) button.dataset.action = action;
+    if (button.textContent !== label) button.textContent = label;
+  });
+  for (let index = actions.length; index < buttons.length; index++) buttons[index].hidden = true;
 }
 
 function stopModeRendering() {
-  cancelAnimationFrame(modeFrameId);
+  if (modeFrameId !== null) cancelAnimationFrame(modeFrameId);
   modeFrameId = null;
 }
 
 function setMode(mode) {
   if (!["clock", "stopwatch", "timer"].includes(mode) || mode === appState.mode) return;
   stopModeRendering();
+  modeToolsAnimation?.cancel();
+  modeToolsAnimation = null;
+  if (appState.mode !== "clock") cancelInstrumentAnimations();
   if (appState.mode === "clock") stopClock();
   appState.timerEditing = false;
   durationInput.hidden = true;
+  document.body.classList.remove("timer-editing");
   appState.mode = mode;
   document.body.classList.toggle("instrument-mode", mode !== "clock");
   modeSelector.querySelectorAll("button").forEach(button => {
@@ -731,6 +865,12 @@ function setMode(mode) {
   if (mode === "clock") {
     startClock();
   } else {
+    if (!reduceMotion && typeof modeTools.animate === "function") {
+      modeToolsAnimation = modeTools.animate(
+        [{ opacity: 0.72 }, { opacity: 1 }],
+        { duration: 120, easing: "cubic-bezier(.2,.6,.4,1)" }
+      );
+    }
     renderActiveMode();
   }
 }
@@ -771,32 +911,36 @@ function beginTimer() {
   if (state.status === "running") return;
   if (state.status === "idle" || state.status === "complete") state.remaining = state.duration;
   if (state.remaining <= 0) return;
-  state.startTime = performance.now();
+  state.deadline = performance.now() + state.remaining;
   state.status = "running";
 }
 
 function pauseTimer() {
   const state = appState.timer;
   if (state.status !== "running") return;
-  state.remaining = getTimerRemaining();
+  const remaining = getTimerRemaining();
   if (state.status === "complete") return;
-  state.startTime = null;
+  state.remaining = remaining;
+  state.deadline = null;
   state.status = "paused";
 }
 
 function resetTimer() {
   const state = appState.timer;
   state.status = "idle";
-  state.startTime = null;
+  state.deadline = null;
   state.remaining = state.duration;
   appState.timerEditing = false;
   durationInput.hidden = true;
+  document.body.classList.remove("timer-editing");
 }
 
 function enterTimerEdit() {
   if (appState.timer.status === "running") return;
   appState.timerEditing = true;
+  document.body.classList.add("timer-editing");
   durationInput.value = formatDurationInput(appState.timer.duration);
+  durationInput.removeAttribute("aria-invalid");
   durationInput.hidden = false;
   renderControls();
   durationInput.focus();
@@ -806,16 +950,17 @@ function enterTimerEdit() {
 function saveTimerEdit() {
   const duration = parseDuration(durationInput.value);
   if (duration === null) {
-    timerHint.textContent = "ENTER A VALID DURATION ABOVE ZERO";
+    timerHint.textContent = "ENTER A VALID DURATION";
     durationInput.setAttribute("aria-invalid", "true");
     return false;
   }
   appState.timer.duration = duration;
   appState.timer.remaining = duration;
-  appState.timer.startTime = null;
+  appState.timer.deadline = null;
   appState.timer.status = "idle";
   appState.timerEditing = false;
   durationInput.hidden = true;
+  document.body.classList.remove("timer-editing");
   durationInput.removeAttribute("aria-invalid");
   persistTimerDuration();
   renderControls();
@@ -838,6 +983,7 @@ function performAction(action) {
     if (action === "cancel-edit") {
       appState.timerEditing = false;
       durationInput.hidden = true;
+      document.body.classList.remove("timer-editing");
       durationInput.removeAttribute("aria-invalid");
     }
   }
@@ -856,8 +1002,14 @@ modeTools.addEventListener("click", event => {
 });
 
 durationInput.addEventListener("input", () => {
-  durationInput.removeAttribute("aria-invalid");
-  timerHint.textContent = "DURATION  M:SS OR H:MM:SS";
+  const invalid = parseDuration(durationInput.value) === null;
+  if (invalid) {
+    durationInput.setAttribute("aria-invalid", "true");
+    timerHint.textContent = "CHECK DURATION";
+  } else {
+    durationInput.removeAttribute("aria-invalid");
+    timerHint.textContent = "DURATION  M:SS OR H:MM:SS";
+  }
 });
 
 durationInput.addEventListener("keydown", event => {
@@ -865,8 +1017,10 @@ durationInput.addEventListener("keydown", event => {
   if (event.key === "Escape") {
     appState.timerEditing = false;
     durationInput.hidden = true;
+    document.body.classList.remove("timer-editing");
     durationInput.removeAttribute("aria-invalid");
     renderControls();
+    renderActiveMode();
   }
 });
 
